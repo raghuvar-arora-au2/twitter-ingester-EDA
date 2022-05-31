@@ -8,6 +8,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.PropertySource;
+
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.JSON;
 import com.twitter.clientlib.TwitterCredentialsBearer;
@@ -17,15 +19,17 @@ import com.twitter.clientlib.model.Problem;
 import com.twitter.clientlib.model.ResourceUnauthorizedProblem;
 import com.twitter.clientlib.model.StreamingTweet;
 import com.google.gson.reflect.TypeToken;
+import com.microservice.twittertokafkaservice.producer.implementations.TwitterProducer;
 import com.microservice.twittertokafkaservice.runner.implementations.TwitterStreamRunner;
 
 // import twitter4j.*;
-
+// @PropertySource("classpath:kafka.properties")
 @ComponentScan(basePackages = {"com.microservice.twittertokafkaservice"})
 @SpringBootApplication
 public class TwitterToKafkaServiceApplication {
 	// private TwitterToKafkaStatusListener twitterToKafkaStatusListener;
-	TwitterStreamRunner twitterStreamRunner;
+	// TwitterStreamRunner twitterStreamRunner;
+    static TwitterProducer twitterProducer;
 	public static void main(String[] args) {
 		SpringApplication.run(TwitterToKafkaServiceApplication.class, args);
 		
@@ -38,10 +42,6 @@ public class TwitterToKafkaServiceApplication {
 		TwitterCredentialsBearer cres=new TwitterCredentialsBearer("AAAAAAAAAAAAAAAAAAAAAPtvdAEAAAAAJzAjSGgmsRaOWz%2B83TSegBkep1E%3DXcDBX43877CQXGcHT81heLBp1ycVVAgsxwsJwtbK2dkVNjT9i6");	
         apiInstance.setTwitterCredentials(cres);
 
-        // Set<String> tweetFields = new HashSet<>();
-        // tweetFields.add("author_id");
-        // tweetFields.add("id");
-        // tweetFields.add("created_at");
 
         try {
             // findTweetById
@@ -54,13 +54,7 @@ public class TwitterToKafkaServiceApplication {
     Set<String> pollFields = new HashSet<>(Arrays.asList()); // Set<String> | A comma separated list of Poll fields to display.
     Integer backfillMinutes = 0; // Integer | The number of minutes of backfill requested
             InputStream result =apiInstance.tweets().searchStream(expansions, tweetFields, userFields, mediaFields, placeFields, pollFields, backfillMinutes);
-                
-            // if (result != null && result.getErrors().size() > 0) {
-            //     System.out.println("Error:");
-
-            //     // result.getErrors().forEach(e -> extracted(e));
-            // } else {
-                
+                                
             BufferedReader reader = new BufferedReader(new InputStreamReader(result));
             
             String line=reader.readLine();
@@ -69,16 +63,16 @@ public class TwitterToKafkaServiceApplication {
                 if(line.isBlank()){
                     continue;
                 }
+               
 
                 // Object jsonObject =JSON.getGson().fromJson(line,StreamingTweet.class );
-                // System.out.println(jsonObject.toString());
-                System.out.println(line);
+                System.out.println(line );
+
+                twitterProducer.send(StreamingTweet.fromJson(line));
+                // System.out.println(line);
                 line=reader.readLine();
             }
-            
-                // System.out.print(reader.readLine());
-                // System.out.println("findTweetById - Tweet Text: " + result.);
-            // }
+    
         } catch (ApiException e) {
             System.err.println("Status code: " + e.getCode());
             System.err.println("Reason: " + e.getResponseBody());
@@ -98,14 +92,15 @@ public class TwitterToKafkaServiceApplication {
                     + ((ResourceUnauthorizedProblem) e).getDetail());
         }
     }
-	public TwitterToKafkaServiceApplication(TwitterStreamRunner streamRunner){
-		this.twitterStreamRunner=streamRunner;
+	public TwitterToKafkaServiceApplication(TwitterProducer twitterProducer){
+		// this.twitterStreamRunner=streamRunner;
+        this.twitterProducer=twitterProducer;
 	}
 
 	// @Override
 	public void run(String... args) throws Exception {
 		
-		this.twitterStreamRunner.run();
+		// this.twitterStreamRunner.run();
 		
 	}
 
